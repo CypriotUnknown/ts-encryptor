@@ -1,4 +1,4 @@
-export default interface EncryptedRequestBodyDTO {
+export interface EncryptedRequestBodyDTO {
     iv: string;
     hash: string;
 }

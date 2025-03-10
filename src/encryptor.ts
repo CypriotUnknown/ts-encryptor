@@ -1,11 +1,11 @@
 import crypto, { subtle } from 'crypto';
-import type EncryptedRequestBodyDTO from './models/models.encryptedRequestBodyDTO.ts';
-import StringUtility from './utils/string.ts';
-import SecurityKeysOutput from './models/models.securityKeysOutput.ts';
-import ComputePostmanSecretDTO from "./models/models.computePostmanSecretDTO.ts";
-import ComputeSecretDTO from "./models/models.computeSecretDTO.ts";
+import type { EncryptedRequestBodyDTO } from './models/models.encryptedRequestBodyDTO.ts';
+import { StringUtility } from './utils/string.ts';
+import { SecurityKeysOutput } from './models/models.securityKeysOutput.ts';
+import { ComputePostmanSecretDTO } from "./models/models.computePostmanSecretDTO.ts";
+import { ComputeSecretDTO } from "./models/models.computeSecretDTO.ts";
 
-export default class Encryptor {
+export class Encryptor {
     private static sharedInstance: Encryptor | undefined;
     private static readonly curve = "P-256";
     private static readonly keyAlgorithm = "ECDH";

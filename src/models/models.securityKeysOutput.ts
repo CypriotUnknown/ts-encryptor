@@ -1,6 +1,6 @@
 import crypto from "crypto";
 
-export default interface SecurityKeysOutput {
+export interface SecurityKeysOutput {
     privateKeyString: string;
     publicKeyString: string;
     privateKey: crypto.webcrypto.CryptoKey;

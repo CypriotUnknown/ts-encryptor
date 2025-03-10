@@ -1,4 +1,4 @@
-export default interface ComputePostmanSecretDTO { // FOR DEV PURPOSES
+export interface ComputePostmanSecretDTO { // FOR DEV PURPOSES
     postmanPrivateKeyBase64: string;
     serverPublicKeyBase64: string;
 }

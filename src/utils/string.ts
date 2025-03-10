@@ -1,4 +1,4 @@
-export default class StringUtility {
+export class StringUtility {
     private constructor() { }
 
     static stringToArrayBuffer(dto: { string: string; encoding: BufferEncoding; }): ArrayBuffer {
