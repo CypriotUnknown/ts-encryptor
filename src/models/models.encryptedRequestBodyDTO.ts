@@ -1,4 +1,4 @@
-export interface EncryptedRequestBodyDTO {
+export interface EncryptedBodyDTO {
     iv: string;
     hash: string;
 }

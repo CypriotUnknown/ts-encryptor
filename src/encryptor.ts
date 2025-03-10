@@ -1,5 +1,5 @@
 import crypto, { subtle } from 'crypto';
-import { type EncryptedRequestBodyDTO } from './models/models.encryptedRequestBodyDTO';
+import { type EncryptedBodyDTO } from './models/models.encryptedRequestBodyDTO';
 import { StringUtility } from './utils/string';
 import { type SecurityKeysOutput } from './models/models.securityKeysOutput';
 import { type ComputePostmanSecretDTO } from "./models/models.computePostmanSecretDTO";
@@ -109,7 +109,7 @@ export class Encryptor {
         return OTP;
     }
 
-    public static async encryptContent(dto: { content: string; secret: string; }): Promise<{ iv: string; content: string }> {
+    public static async encryptContent(dto: { content: string; secret: string; }): Promise<EncryptedBodyDTO> {
         const { content, secret } = dto;
         const iv = crypto.randomBytes(16).toString(this.ivEncoding);
 
@@ -126,11 +126,11 @@ export class Encryptor {
 
         return {
             iv,
-            content: encrypted.toString(this.clientEncoding)
+            hash: encrypted.toString(this.clientEncoding)
         };
     }
 
-    public static async decryptContent(dto: { content: EncryptedRequestBodyDTO, secret: string }): Promise<string> {
+    public static async decryptContent(dto: { content: EncryptedBodyDTO, secret: string }): Promise<string> {
         const { content, secret } = dto;
         const decipher = crypto.createDecipheriv(
             this.encrpytionAlgorithm,
