@@ -2,13 +2,11 @@ stages:
   - publish
 
 publish_to_jsr:
-  image: oven/bun # Uses the official Bun image
+  image: oven/bun # Uses Bun's official image
   stage: publish
   only:
     - main # Runs only on the main branch
-  before_script:
-    - echo "//jsr.io/:_authToken=$JSR_AUTH_TOKEN" > ~/.npmrc
   script:
-    - bunx jsr publish
+    - bunx jsr publish --token "$JSR_AUTH_TOKEN"
   after_script:
     - echo "Package successfully published to JSR!"
