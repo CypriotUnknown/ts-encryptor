@@ -43,10 +43,10 @@ export default class Encryptor {
             privateKeyString,
             publicKeyString,
             privateKey: keyPair.privateKey
-        }
+        };
     }
 
-    private static async generateCryptoKeyFromBase64String(base64KeyString: string, forPostman: boolean = false) {
+    private static async generateCryptoKeyFromBase64String(base64KeyString: string, forPostman: boolean = false): Promise<CryptoKey> {
         return await subtle.importKey(
             forPostman ? "pkcs8" : "spki",
             StringUtility.stringToArrayBuffer({ string: base64KeyString, encoding: this.keyEncoding }),
@@ -70,7 +70,7 @@ export default class Encryptor {
         return StringUtility.arrayBufferToString({ buffer: digestBuffer, encoding: this.secretEncoding });
     }
 
-    private static async deriveBits(params: { publicKey: crypto.webcrypto.CryptoKey; privateKey: crypto.webcrypto.CryptoKey; }) {
+    private static async deriveBits(params: { publicKey: crypto.webcrypto.CryptoKey; privateKey: crypto.webcrypto.CryptoKey; }): Promise<ArrayBuffer> {
         const { publicKey, privateKey } = params;
         return await subtle.deriveBits(
             {
@@ -92,7 +92,7 @@ export default class Encryptor {
         return StringUtility.arrayBufferToString({ buffer: digestBuffer, encoding: this.secretEncoding });
     }
 
-    public static generateRandomDigits(dto?: { maxDigits: number }) {
+    public static generateRandomDigits(dto?: { maxDigits: number }): string {
         const maxDigits = dto?.maxDigits ?? 6;
 
         let possibleDigits: string[] = [];
@@ -109,7 +109,7 @@ export default class Encryptor {
         return OTP;
     }
 
-    public static async encryptContent(dto: { content: string; secret: string; }) {
+    public static async encryptContent(dto: { content: string; secret: string; }): Promise<{ iv: string; content: string }> {
         const { content, secret } = dto;
         const iv = crypto.randomBytes(16).toString(this.ivEncoding);
 
@@ -127,10 +127,10 @@ export default class Encryptor {
         return {
             iv,
             content: encrypted.toString(this.clientEncoding)
-        }
+        };
     }
 
-    public static async decryptContent(dto: { content: EncryptedRequestBodyDTO, secret: string }) {
+    public static async decryptContent(dto: { content: EncryptedRequestBodyDTO, secret: string }): Promise<string> {
         const { content, secret } = dto;
         const decipher = crypto.createDecipheriv(
             this.encrpytionAlgorithm,
@@ -145,5 +145,4 @@ export default class Encryptor {
 
         return decrypted.toString();
     }
-
 }
