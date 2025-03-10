@@ -1,14 +1,14 @@
 import { Encryptor } from "./src/encryptor";
-import { ComputePostmanSecretDTO } from "./src/models/models.computePostmanSecretDTO";
-import { ComputeSecretDTO } from "./src/models/models.computeSecretDTO";
-import { EncryptedRequestBodyDTO } from "./src/models/models.encryptedRequestBodyDTO";
-import { SecurityKeysOutput } from "./src/models/models.securityKeysOutput";
+import { type ComputePostmanSecretDTO } from "./src/models/models.computePostmanSecretDTO";
+import { type ComputeSecretDTO } from "./src/models/models.computeSecretDTO";
+import { type EncryptedRequestBodyDTO } from "./src/models/models.encryptedRequestBodyDTO";
+import { type SecurityKeysOutput } from "./src/models/models.securityKeysOutput";
 
 export default Encryptor;
 
 export {
-    ComputePostmanSecretDTO,
-    ComputeSecretDTO,
-    EncryptedRequestBodyDTO,
-    SecurityKeysOutput,
+    type ComputePostmanSecretDTO,
+    type ComputeSecretDTO,
+    type EncryptedRequestBodyDTO,
+    type SecurityKeysOutput,
 }

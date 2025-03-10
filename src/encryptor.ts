@@ -1,9 +1,9 @@
 import crypto, { subtle } from 'crypto';
-import type { EncryptedRequestBodyDTO } from './models/models.encryptedRequestBodyDTO.ts';
-import { StringUtility } from './utils/string.ts';
-import { SecurityKeysOutput } from './models/models.securityKeysOutput.ts';
-import { ComputePostmanSecretDTO } from "./models/models.computePostmanSecretDTO.ts";
-import { ComputeSecretDTO } from "./models/models.computeSecretDTO.ts";
+import { type EncryptedRequestBodyDTO } from './models/models.encryptedRequestBodyDTO';
+import { StringUtility } from './utils/string';
+import { type SecurityKeysOutput } from './models/models.securityKeysOutput';
+import { type ComputePostmanSecretDTO } from "./models/models.computePostmanSecretDTO";
+import { type ComputeSecretDTO } from "./models/models.computeSecretDTO";
 
 export class Encryptor {
     private static sharedInstance: Encryptor | undefined;
