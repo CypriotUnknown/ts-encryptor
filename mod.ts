@@ -4,8 +4,9 @@ import ComputeSecretDTO from "./src/models/models.computeSecretDTO.ts";
 import EncryptedRequestBodyDTO from "./src/models/models.encryptedRequestBodyDTO.ts";
 import SecurityKeysOutput from "./src/models/models.securityKeysOutput.ts";
 
+export default Encryptor;
+
 export {
-    Encryptor,
     ComputePostmanSecretDTO,
     ComputeSecretDTO,
     EncryptedRequestBodyDTO,
