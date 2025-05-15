@@ -23,7 +23,7 @@ export class Encryptor {
         return this.sharedInstance;
     }
 
-    public static async generateJWKKeys() {
+    public static async generateJWKKeys(): Promise<SecurityKeysOutput> {
         const keyPair = await crypto.subtle.generateKey(
             {
                 name: this.keyAlgorithm,
