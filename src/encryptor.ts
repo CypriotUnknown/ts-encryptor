@@ -23,6 +23,29 @@ export class Encryptor {
         return this.sharedInstance;
     }
 
+    public static async generateJWKKeys() {
+        const keyPair = await crypto.subtle.generateKey(
+            {
+                name: this.keyAlgorithm,
+                namedCurve: this.curve,
+            },
+            true,
+            ["deriveKey", "deriveBits"]
+        );
+
+        const publicKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+        const privateKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+
+        const publicKeyString = JSON.stringify(publicKeyJwk);
+        const privateKeyString = JSON.stringify(privateKeyJwk);
+
+        return {
+            privateKeyString,
+            publicKeyString,
+            privateKey: keyPair.privateKey
+        };
+    }
+
     public static async generateKeys(): Promise<SecurityKeysOutput> {
         const keyPair = await crypto.subtle.generateKey(
             {
@@ -44,6 +67,20 @@ export class Encryptor {
             publicKeyString,
             privateKey: keyPair.privateKey
         };
+    }
+
+    private static async generateJWKCryptoKeyFromBase64String(base64KeyString: string, forPostman: boolean = false): Promise<CryptoKey> {
+        const keyJwk = JSON.parse(base64KeyString);
+        return await crypto.subtle.importKey(
+            "jwk",
+            keyJwk,
+            {
+                name: this.keyAlgorithm,
+                namedCurve: this.curve,
+            },
+            true,
+            forPostman ? ['deriveBits', 'deriveKey'] : []
+        );
     }
 
     private static async generateCryptoKeyFromBase64String(base64KeyString: string, forPostman: boolean = false): Promise<CryptoKey> {
@@ -78,14 +115,20 @@ export class Encryptor {
                 public: publicKey,
             },
             privateKey,
-            null // length
+            256 // length
         );
     }
 
     public static async computeSecret(dto: ComputeSecretDTO): Promise<string> {
-        const { clientPublicKeyBase64, privateKey } = dto;
+        const { clientPublicKeyBase64, privateKey, jwk } = dto;
+        let publicKey: CryptoKey;
 
-        const publicKey = await this.generateCryptoKeyFromBase64String(clientPublicKeyBase64);
+        if (jwk) {
+            publicKey = await this.generateJWKCryptoKeyFromBase64String(clientPublicKeyBase64);
+        } else {
+            publicKey = await this.generateCryptoKeyFromBase64String(clientPublicKeyBase64);
+        }
+
         const sharedSecret = await this.deriveBits({ privateKey, publicKey });
 
         const digestBuffer = await crypto.subtle.digest({ name: "SHA-256" }, sharedSecret);
