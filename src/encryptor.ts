@@ -1,4 +1,4 @@
-import crypto, { subtle } from 'crypto';
+import crypto from 'node:crypto';
 import { type EncryptedBodyDTO } from './models/models.encryptedRequestBodyDTO';
 import { StringUtility } from './utils/string';
 import { type SecurityKeysOutput } from './models/models.securityKeysOutput';
@@ -24,7 +24,7 @@ export class Encryptor {
     }
 
     public static async generateKeys(): Promise<SecurityKeysOutput> {
-        const keyPair = await subtle.generateKey(
+        const keyPair = await crypto.subtle.generateKey(
             {
                 name: this.keyAlgorithm,
                 namedCurve: this.curve,
@@ -33,10 +33,10 @@ export class Encryptor {
             ["deriveKey", "deriveBits"]
         );
 
-        const publicKeyBuffer = await subtle.exportKey("spki", keyPair.publicKey);
+        const publicKeyBuffer = await crypto.subtle.exportKey("spki", keyPair.publicKey);
         const publicKeyString = StringUtility.arrayBufferToString({ buffer: publicKeyBuffer, encoding: this.keyEncoding });
 
-        const privateKeyBuffer = await subtle.exportKey("pkcs8", keyPair.privateKey);
+        const privateKeyBuffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
         const privateKeyString = StringUtility.arrayBufferToString({ buffer: privateKeyBuffer, encoding: this.keyEncoding });
 
         return {
@@ -47,7 +47,7 @@ export class Encryptor {
     }
 
     private static async generateCryptoKeyFromBase64String(base64KeyString: string, forPostman: boolean = false): Promise<CryptoKey> {
-        return await subtle.importKey(
+        return await crypto.subtle.importKey(
             forPostman ? "pkcs8" : "spki",
             StringUtility.stringToArrayBuffer({ string: base64KeyString, encoding: this.keyEncoding }),
             {
@@ -66,13 +66,13 @@ export class Encryptor {
         const serverPublicKey = await this.generateCryptoKeyFromBase64String(serverPublicKeyBase64);
 
         const sharedSecret = await this.deriveBits({ privateKey: postmanPrivateKey, publicKey: serverPublicKey });
-        const digestBuffer = await subtle.digest({ name: "SHA-256" }, sharedSecret);
+        const digestBuffer = await crypto.subtle.digest({ name: "SHA-256" }, sharedSecret);
         return StringUtility.arrayBufferToString({ buffer: digestBuffer, encoding: this.secretEncoding });
     }
 
     private static async deriveBits(params: { publicKey: crypto.webcrypto.CryptoKey; privateKey: crypto.webcrypto.CryptoKey; }): Promise<ArrayBuffer> {
         const { publicKey, privateKey } = params;
-        return await subtle.deriveBits(
+        return await crypto.subtle.deriveBits(
             {
                 name: this.keyAlgorithm,
                 public: publicKey,
@@ -88,7 +88,7 @@ export class Encryptor {
         const publicKey = await this.generateCryptoKeyFromBase64String(clientPublicKeyBase64);
         const sharedSecret = await this.deriveBits({ privateKey, publicKey });
 
-        const digestBuffer = await subtle.digest({ name: "SHA-256" }, sharedSecret);
+        const digestBuffer = await crypto.subtle.digest({ name: "SHA-256" }, sharedSecret);
         return StringUtility.arrayBufferToString({ buffer: digestBuffer, encoding: this.secretEncoding });
     }
 
