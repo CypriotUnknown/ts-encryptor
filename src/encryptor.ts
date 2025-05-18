@@ -23,7 +23,7 @@ export class Encryptor {
         return this.sharedInstance;
     }
 
-    public static async generateKeys(params: { platform: "browser" | "app" }) {
+    public static async generateKeys(params: { platform: "browser" | "app" }): Promise<SecurityKeysOutput> {
         const { platform } = params;
         const keyPair = await crypto.subtle.generateKey(
             {
