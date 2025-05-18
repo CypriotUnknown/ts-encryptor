@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import crypto, { KeyFormat } from 'node:crypto';
 import { type EncryptedBodyDTO } from './models/models.encryptedRequestBodyDTO';
 import { StringUtility } from './utils/string';
 import { type SecurityKeysOutput } from './models/models.securityKeysOutput';
@@ -23,7 +23,8 @@ export class Encryptor {
         return this.sharedInstance;
     }
 
-    public static async generateJWKKeys(): Promise<SecurityKeysOutput> {
+    public static async generateKeys(params: { platform: "browser" | "app" }) {
+        const { platform } = params;
         const keyPair = await crypto.subtle.generateKey(
             {
                 name: this.keyAlgorithm,
@@ -33,34 +34,24 @@ export class Encryptor {
             ["deriveKey", "deriveBits"]
         );
 
-        const publicKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
-        const privateKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+        const keyFormat = platform === "browser" ? "jwk" : "spki";
 
-        const publicKeyString = JSON.stringify(publicKeyJwk);
-        const privateKeyString = JSON.stringify(privateKeyJwk);
+        let publicKeyString: string;
+        let privateKeyString: string;
 
-        return {
-            privateKeyString,
-            publicKeyString,
-            privateKey: keyPair.privateKey
-        };
-    }
+        if (keyFormat === "jwk") {
+            const publicKeyJwk = await crypto.subtle.exportKey(keyFormat, keyPair.publicKey);
+            const privateKeyJwk = await crypto.subtle.exportKey(keyFormat, keyPair.privateKey);
 
-    public static async generateKeys(): Promise<SecurityKeysOutput> {
-        const keyPair = await crypto.subtle.generateKey(
-            {
-                name: this.keyAlgorithm,
-                namedCurve: this.curve,
-            },
-            true,
-            ["deriveKey", "deriveBits"]
-        );
+            publicKeyString = JSON.stringify(publicKeyJwk);
+            privateKeyString = JSON.stringify(privateKeyJwk);
+        } else {
+            const publicKeyBuffer = await crypto.subtle.exportKey(keyFormat, keyPair.publicKey);
+            const privateKeyBuffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
 
-        const publicKeyBuffer = await crypto.subtle.exportKey("spki", keyPair.publicKey);
-        const publicKeyString = StringUtility.arrayBufferToString({ buffer: publicKeyBuffer, encoding: this.keyEncoding });
-
-        const privateKeyBuffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-        const privateKeyString = StringUtility.arrayBufferToString({ buffer: privateKeyBuffer, encoding: this.keyEncoding });
+            publicKeyString = StringUtility.arrayBufferToString({ buffer: publicKeyBuffer, encoding: this.keyEncoding });
+            privateKeyString = StringUtility.arrayBufferToString({ buffer: privateKeyBuffer, encoding: this.keyEncoding });
+        }
 
         return {
             privateKeyString,
@@ -68,6 +59,52 @@ export class Encryptor {
             privateKey: keyPair.privateKey
         };
     }
+
+    // public static async generateJWKKeys(): Promise<SecurityKeysOutput> {
+    //     const keyPair = await crypto.subtle.generateKey(
+    //         {
+    //             name: this.keyAlgorithm,
+    //             namedCurve: this.curve,
+    //         },
+    //         true,
+    //         ["deriveKey", "deriveBits"]
+    //     );
+
+    //     const publicKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+    //     const privateKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+
+    //     const publicKeyString = JSON.stringify(publicKeyJwk);
+    //     const privateKeyString = JSON.stringify(privateKeyJwk);
+
+    //     return {
+    //         privateKeyString,
+    //         publicKeyString,
+    //         privateKey: keyPair.privateKey
+    //     };
+    // }
+
+    // public static async generateKeys(): Promise<SecurityKeysOutput> {
+    //     const keyPair = await crypto.subtle.generateKey(
+    //         {
+    //             name: this.keyAlgorithm,
+    //             namedCurve: this.curve,
+    //         },
+    //         true,
+    //         ["deriveKey", "deriveBits"]
+    //     );
+
+    //     const publicKeyBuffer = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+    //     const privateKeyBuffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+
+    //     const publicKeyString = StringUtility.arrayBufferToString({ buffer: publicKeyBuffer, encoding: this.keyEncoding });
+    //     const privateKeyString = StringUtility.arrayBufferToString({ buffer: privateKeyBuffer, encoding: this.keyEncoding });
+
+    //     return {
+    //         privateKeyString,
+    //         publicKeyString,
+    //         privateKey: keyPair.privateKey
+    //     };
+    // }
 
     private static async generateJWKCryptoKeyFromBase64String(base64KeyString: string, forPostman: boolean = false): Promise<CryptoKey> {
         const keyJwk = JSON.parse(base64KeyString);
