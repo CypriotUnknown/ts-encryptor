@@ -189,8 +189,8 @@ export class Encryptor {
         return OTP;
     }
 
-    public static async encryptContent(dto: { content: string; secret: string; }): Promise<EncryptedBodyDTO> {
-        const { content, secret } = dto;
+    public static async encryptContent(dto: { content: string; secret: string; hashEncoding?: BufferEncoding; }): Promise<EncryptedBodyDTO> {
+        const { content, secret, hashEncoding } = dto;
         const iv = crypto.randomBytes(16).toString(this.ivEncoding);
 
         const cipher = crypto.createCipheriv(
@@ -206,12 +206,12 @@ export class Encryptor {
 
         return {
             iv,
-            hash: encrypted.toString(this.clientEncoding)
+            hash: encrypted.toString(hashEncoding ?? this.clientEncoding)
         };
     }
 
-    public static async decryptContent(dto: { content: EncryptedBodyDTO, secret: string }): Promise<string> {
-        const { content, secret } = dto;
+    public static async decryptContent(dto: { content: EncryptedBodyDTO, secret: string; hashEncoding?: BufferEncoding; }): Promise<string> {
+        const { content, secret, hashEncoding } = dto;
         const decipher = crypto.createDecipheriv(
             this.encrpytionAlgorithm,
             Buffer.from(secret, this.secretEncoding),
@@ -219,7 +219,7 @@ export class Encryptor {
         );
 
         const decrypted = Buffer.concat([
-            decipher.update(Buffer.from(content.hash, this.clientEncoding)),
+            decipher.update(Buffer.from(content.hash, hashEncoding ?? this.clientEncoding)),
             decipher.final()
         ]);
 
