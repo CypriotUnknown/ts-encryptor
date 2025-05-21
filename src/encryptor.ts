@@ -1,9 +1,10 @@
-import crypto, { KeyFormat } from 'node:crypto';
+import crypto from 'node:crypto';
 import { type EncryptedBodyDTO } from './models/models.encryptedRequestBodyDTO';
 import { StringUtility } from './utils/string';
 import { type SecurityKeysOutput } from './models/models.securityKeysOutput';
 import { type ComputePostmanSecretDTO } from "./models/models.computePostmanSecretDTO";
 import { type ComputeSecretDTO } from "./models/models.computeSecretDTO";
+import { Platform } from './models/models.platformType';
 
 export class Encryptor {
     private static sharedInstance: Encryptor | undefined;
@@ -157,10 +158,10 @@ export class Encryptor {
     }
 
     public static async computeSecret(dto: ComputeSecretDTO): Promise<string> {
-        const { clientPublicKeyBase64, privateKey, jwk } = dto;
+        const { clientPublicKeyBase64, privateKey, platform } = dto;
         let publicKey: CryptoKey;
 
-        if (jwk) {
+        if (platform === "browser") {
             publicKey = await this.generateJWKCryptoKeyFromBase64String(clientPublicKeyBase64);
         } else {
             publicKey = await this.generateCryptoKeyFromBase64String(clientPublicKeyBase64);
@@ -189,8 +190,8 @@ export class Encryptor {
         return OTP;
     }
 
-    public static async encryptContent(dto: { content: string; secret: string; hashEncoding?: BufferEncoding; }): Promise<EncryptedBodyDTO> {
-        const { content, secret, hashEncoding } = dto;
+    public static async encryptContent(dto: { content: string; secret: string; platform: Platform; }): Promise<EncryptedBodyDTO> {
+        const { content, secret, platform } = dto;
         const iv = crypto.randomBytes(16).toString(this.ivEncoding);
 
         const cipher = crypto.createCipheriv(
@@ -206,12 +207,12 @@ export class Encryptor {
 
         return {
             iv,
-            hash: encrypted.toString(hashEncoding ?? this.clientEncoding)
+            hash: encrypted.toString(platform === "app" ? "base64" : this.clientEncoding)
         };
     }
 
-    public static async decryptContent(dto: { content: EncryptedBodyDTO, secret: string; hashEncoding?: BufferEncoding; }): Promise<string> {
-        const { content, secret, hashEncoding } = dto;
+    public static async decryptContent(dto: { content: EncryptedBodyDTO, secret: string; platform: Platform; }): Promise<string> {
+        const { content, secret, platform } = dto;
         const decipher = crypto.createDecipheriv(
             this.encrpytionAlgorithm,
             Buffer.from(secret, this.secretEncoding),
@@ -219,7 +220,7 @@ export class Encryptor {
         );
 
         const decrypted = Buffer.concat([
-            decipher.update(Buffer.from(content.hash, hashEncoding ?? this.clientEncoding)),
+            decipher.update(Buffer.from(content.hash, platform === "app" ? "base64" : this.clientEncoding)),
             decipher.final()
         ]);
 

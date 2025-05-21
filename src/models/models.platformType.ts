@@ -1,0 +1,1 @@
+export type Platform = "app" | "browser";
