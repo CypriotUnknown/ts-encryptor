@@ -2,9 +2,8 @@ import crypto from 'node:crypto';
 import { type EncryptedBodyDTO } from './models/models.encryptedRequestBodyDTO';
 import { StringUtility } from './utils/string';
 import { type SecurityKeysOutput } from './models/models.securityKeysOutput';
-import { type ComputePostmanSecretDTO } from "./models/models.computePostmanSecretDTO";
 import { type ComputeSecretDTO } from "./models/models.computeSecretDTO";
-import { Platform } from './models/models.platformType';
+import { EncryptorPlatform } from './models/models.platformType';
 
 export class Encryptor {
     private static sharedInstance: Encryptor | undefined;
@@ -61,54 +60,14 @@ export class Encryptor {
         };
     }
 
-    // public static async generateJWKKeys(): Promise<SecurityKeysOutput> {
-    //     const keyPair = await crypto.subtle.generateKey(
-    //         {
-    //             name: this.keyAlgorithm,
-    //             namedCurve: this.curve,
-    //         },
-    //         true,
-    //         ["deriveKey", "deriveBits"]
-    //     );
-
-    //     const publicKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
-    //     const privateKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
-
-    //     const publicKeyString = JSON.stringify(publicKeyJwk);
-    //     const privateKeyString = JSON.stringify(privateKeyJwk);
-
-    //     return {
-    //         privateKeyString,
-    //         publicKeyString,
-    //         privateKey: keyPair.privateKey
-    //     };
-    // }
-
-    // public static async generateKeys(): Promise<SecurityKeysOutput> {
-    //     const keyPair = await crypto.subtle.generateKey(
-    //         {
-    //             name: this.keyAlgorithm,
-    //             namedCurve: this.curve,
-    //         },
-    //         true,
-    //         ["deriveKey", "deriveBits"]
-    //     );
-
-    //     const publicKeyBuffer = await crypto.subtle.exportKey("spki", keyPair.publicKey);
-    //     const privateKeyBuffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-
-    //     const publicKeyString = StringUtility.arrayBufferToString({ buffer: publicKeyBuffer, encoding: this.keyEncoding });
-    //     const privateKeyString = StringUtility.arrayBufferToString({ buffer: privateKeyBuffer, encoding: this.keyEncoding });
-
-    //     return {
-    //         privateKeyString,
-    //         publicKeyString,
-    //         privateKey: keyPair.privateKey
-    //     };
-    // }
-
-    private static async generateJWKCryptoKeyFromBase64String(base64KeyString: string, forPostman: boolean = false): Promise<CryptoKey> {
+    private static async generateJWKCryptoKeyFromBase64String(base64KeyString: string): Promise<CryptoKey> {
         const keyJwk = JSON.parse(base64KeyString);
+
+        const isPrivateKey = !!keyJwk.d;
+        const usages = isPrivateKey
+            ? (["deriveBits", "deriveKey"] as const)
+            : ([] as const);
+
         return await crypto.subtle.importKey(
             "jwk",
             keyJwk,
@@ -117,32 +76,40 @@ export class Encryptor {
                 namedCurve: this.curve,
             },
             true,
-            forPostman ? ['deriveBits', 'deriveKey'] : []
+            usages
         );
     }
 
-    private static async generateCryptoKeyFromBase64String(base64KeyString: string, forPostman: boolean = false): Promise<CryptoKey> {
+    private static async generateCryptoKeyFromBase64StringForAppPlatform(base64KeyString: string, returnKey: "private" | "public"): Promise<CryptoKey> {
+        const keyFormat = returnKey === "private" ? "pkcs8" : "spki";
+        const usages: KeyUsage[] =
+            returnKey === "private"
+                ? ["deriveBits", "deriveKey"]
+                : [];
+
         return await crypto.subtle.importKey(
-            forPostman ? "pkcs8" : "spki",
+            keyFormat,
             StringUtility.stringToArrayBuffer({ string: base64KeyString, encoding: this.keyEncoding }),
             {
                 name: this.keyAlgorithm,
                 namedCurve: this.curve,
             },
             true,
-            forPostman ? ['deriveBits', 'deriveKey'] : []
+            usages
         );
     }
 
-    // FOR DEV PURPOSES
-    public static async computePostmanSecret(dto: ComputePostmanSecretDTO): Promise<string> {
-        const { postmanPrivateKeyBase64, serverPublicKeyBase64 } = dto;
-        const postmanPrivateKey = await this.generateCryptoKeyFromBase64String(postmanPrivateKeyBase64, true);
-        const serverPublicKey = await this.generateCryptoKeyFromBase64String(serverPublicKeyBase64);
-
-        const sharedSecret = await this.deriveBits({ privateKey: postmanPrivateKey, publicKey: serverPublicKey });
-        const digestBuffer = await crypto.subtle.digest({ name: "SHA-256" }, sharedSecret);
-        return StringUtility.arrayBufferToString({ buffer: digestBuffer, encoding: this.secretEncoding });
+    public static async generateCryptoKeyFromBase64(
+        params:
+            | { platform: "browser"; base64KeyString: string; }
+            | { platform: "app"; base64KeyString: string; returnKey: "private" | "public" }
+    ): Promise<CryptoKey> {
+        const { base64KeyString, platform } = params;
+        if (platform === "app") {
+            return this.generateCryptoKeyFromBase64StringForAppPlatform(base64KeyString, params.returnKey);
+        } else {
+            return this.generateJWKCryptoKeyFromBase64String(base64KeyString);
+        }
     }
 
     private static async deriveBits(params: { publicKey: crypto.webcrypto.CryptoKey; privateKey: crypto.webcrypto.CryptoKey; }): Promise<ArrayBuffer> {
@@ -164,7 +131,7 @@ export class Encryptor {
         if (platform === "browser") {
             publicKey = await this.generateJWKCryptoKeyFromBase64String(clientPublicKeyBase64);
         } else {
-            publicKey = await this.generateCryptoKeyFromBase64String(clientPublicKeyBase64);
+            publicKey = await this.generateCryptoKeyFromBase64StringForAppPlatform(clientPublicKeyBase64, "public");
         }
 
         const sharedSecret = await this.deriveBits({ privateKey, publicKey });
@@ -190,7 +157,7 @@ export class Encryptor {
         return OTP;
     }
 
-    public static async encryptContent(dto: { content: string; secret: string; platform: Platform; }): Promise<EncryptedBodyDTO> {
+    public static async encryptContent(dto: { content: string; secret: string; platform: EncryptorPlatform; }): Promise<EncryptedBodyDTO> {
         const { content, secret, platform } = dto;
         const iv = crypto.randomBytes(16).toString(this.ivEncoding);
 
@@ -211,7 +178,7 @@ export class Encryptor {
         };
     }
 
-    public static async decryptContent(dto: { content: EncryptedBodyDTO, secret: string; platform: Platform; }): Promise<string> {
+    public static async decryptContent(dto: { content: EncryptedBodyDTO, secret: string; platform: EncryptorPlatform; }): Promise<string> {
         const { content, secret, platform } = dto;
         const decipher = crypto.createDecipheriv(
             this.encrpytionAlgorithm,

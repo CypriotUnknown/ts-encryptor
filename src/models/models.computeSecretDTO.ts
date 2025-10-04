@@ -1,8 +1,8 @@
 import crypto from 'crypto';
-import { type Platform } from "./models.platformType";
+import { type EncryptorPlatform } from "./models.platformType";
 
 export interface ComputeSecretDTO {
-    platform: Platform;
+    platform: EncryptorPlatform;
     clientPublicKeyBase64: string;
     privateKey: crypto.webcrypto.CryptoKey;
 } 

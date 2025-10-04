@@ -1,1 +1,1 @@
-export type Platform = "app" | "browser";
+export type EncryptorPlatform = "app" | "browser";
