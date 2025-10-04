@@ -15,26 +15,9 @@ A TypeScript utility for performing secure ECDH key exchange, AES encryption/dec
 
 ---
 
-## 📦 Installation
-
-```bash
-npx jsr add @cypriot/encryptor
-```
-```bash
-deno add jsr:@cypriot/encryptor
-```
-```bash
-yarn add jsr:@cypriot/encryptor
-```
-```bash
-bunx jsr add @cypriot/encryptor
-```
-
----
-
 ## Usage
 
-# 1. Generate keys
+### 1. Generate keys
 
 ```ts
 import Encryptor from '@cypriot/encryptor';
@@ -57,7 +40,7 @@ This function returns:
 */
 ```
 
-# 2. Import Keys from Base64
+### 2. Import Keys from Base64
 
 ```ts
 // For browser
@@ -74,7 +57,7 @@ const appPrivateKey = await Encryptor.generateCryptoKeyFromBase64({
 });
 ```
 
-# 3. Compute a Shared Secret
+### 3. Compute a Shared Secret
 
 ```ts
 const sharedSecret = await Encryptor.computeSecret({
@@ -86,7 +69,7 @@ const sharedSecret = await Encryptor.computeSecret({
 
 This produces a base64-encoded shared secret.
 
-# 4. Encrypt/Decrypt Data
+### 4. Encrypt/Decrypt Data
 
 ```ts
 const encrypted = await Encryptor.encryptContent({
@@ -118,27 +101,27 @@ The `Encryptor` class supports two platforms, each with different key formats an
 
 Suppose two different applications want to share an encrypted message with each other. The following procedure could be used:
 
-# Step 1:
+### Step 1:
 
 Application 1 and 2 each generate their key pairs using the `generateKeys` function. Private keys should NEVER leave the application and should be kept securely.
 
-# Step 2:
+### Step 2:
 
 The applications share their `publicKeyString` with each other.
 
-# Step 3:
+### Step 3:
 
 With the `publicKeyString` of each other, the applications can each compute the shared secret. This secret should NEVER leave the application scope and should be kept securely.
 
-# Step 4:
+### Step 4:
 
 The message to send gets encrypted using the `encryptContent` function. The returning object is then sent to the other application.
 
-# Step 5:
+### Step 5:
 
 The receiving application decrypts the message using the `decryptContent` function. This returns the message as a string.
 
-# Example code:
+### Example code:
 
 ```ts
 const platform: EncryptorPlatform = "app";
