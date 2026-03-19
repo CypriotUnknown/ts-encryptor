@@ -1,17 +1,33 @@
-# 🔐 Encryptor
+# Encryptor
 
-A TypeScript utility for performing secure ECDH key exchange, AES encryption/decryption, and shared-secret computation between a **browser** and an **app** platform.
+A TypeScript utility for ECDH key exchange, AES-256-CBC encryption/decryption, and shared-secret computation between a **browser** and an **app** platform.
 
 ---
 
-## 🚀 Features
+## Installation
+
+**JSR (Deno / Bun / Node.js)**
+```sh
+deno add jsr:@cypriot/encryptor
+bunx jsr add @cypriot/encryptor
+npx jsr add @cypriot/encryptor
+```
+
+**npm**
+```sh
+npm install @cypriotunknown/encryptor
+```
+
+---
+
+## Features
 
 - Generate ECDH key pairs (`P-256` curve)
 - Import/export keys for both **browser (JWK)** and **app (SPKI/PKCS8)** platforms
-- Compute shared secrets via `ECDH`
+- Compute shared secrets via ECDH + SHA-256
 - AES-256-CBC symmetric encryption and decryption
-- Utility methods for random digits (e.g. OTP)
-- Works seamlessly in **Node.js 18+** (uses `crypto.subtle`)
+- Random digit generation (e.g. OTP codes)
+- Works in **Node.js 18+**, **Bun**, and modern **browsers** (uses `crypto.subtle`)
 
 ---
 
@@ -29,141 +45,113 @@ const browserKeys = await Encryptor.generateKeys({ platform: "browser" });
 const appKeys = await Encryptor.generateKeys({ platform: "app" });
 ```
 
-This function returns:
+Returns a `SecurityKeysOutput`:
 ```ts
-/*
 {
-  privateKeyString: string;
-  publicKeyString: string;
-  privateKey: CryptoKey;
+  privateKeyString: string; // serialized private key — never share this
+  publicKeyString: string;  // serialized public key — share with the other party
+  privateKey: CryptoKey;    // native CryptoKey, ready to use directly
 }
-*/
 ```
 
-### 2. Import Keys from Base64
+### 2. Import a key from a string
 
 ```ts
-// For browser
-const browserKey = await Encryptor.generateCryptoKeyFromBase64({
-  platform: "browser",
-  base64KeyString: browserKeys.publicKeyString
-});
-
-// For app
-const appPrivateKey = await Encryptor.generateCryptoKeyFromBase64({
+// Re-import a stored app private key
+const privateKey = await Encryptor.generateCryptoKeyFromBase64({
   platform: "app",
   base64KeyString: appKeys.privateKeyString,
-  returnKey: "private"
+  returnKey: "private",
+});
+
+// Import a peer's browser public key
+const publicKey = await Encryptor.generateCryptoKeyFromBase64({
+  platform: "browser",
+  base64KeyString: browserKeys.publicKeyString,
 });
 ```
 
-### 3. Compute a Shared Secret
+### 3. Compute a shared secret
 
 ```ts
 const sharedSecret = await Encryptor.computeSecret({
   clientPublicKeyBase64: browserKeys.publicKeyString,
   privateKey: appPrivateKey,
-  platform: "app"
+  platform: "app",
 });
 ```
 
-This produces a base64-encoded shared secret.
+Returns a Base64-encoded, SHA-256-hashed shared secret.
 
-### 4. Encrypt/Decrypt Data
+### 4. Encrypt and decrypt
 
 ```ts
 const encrypted = await Encryptor.encryptContent({
   content: JSON.stringify({ message: "Hello World" }),
   secret: sharedSecret,
-  platform: "app"
+  platform: "app",
 });
 
 const decrypted = await Encryptor.decryptContent({
   content: encrypted,
   secret: sharedSecret,
-  platform: "app"
+  platform: "app",
 });
 
 console.log(decrypted); // {"message":"Hello World"}
 ```
 
-## 🧩 Supported Platforms
+---
 
-The `Encryptor` class supports two platforms, each with different key formats and usage:
+## Supported Platforms
 
-| Platform | Key Format | Description | Example Use Case |
-|-----------|-------------|--------------|------------------|
-| **browser** | JWK (JSON Web Key) | Uses JSON-based keys for compatibility with Web Crypto API. Keys are exported/imported as JSON strings. | Web clients running in the browser. |
-| **app** | SPKI / PKCS8 | Uses Base64-encoded DER keys for stronger control and compactness. Keys are exported/imported as binary data encoded in Base64. | Mobile or desktop apps, or Node.js backends. |
+| Platform | Key Format | Cipher Output | Typical Use Case |
+|----------|------------|---------------|------------------|
+| `"browser"` | JWK (JSON string) | Hex | Web clients using the Web Crypto API |
+| `"app"` | SPKI / PKCS8 (Base64) | Base64 | Mobile/desktop apps, Node.js/Bun backends |
 
+---
 
-## Example Usage
+## Full Example
 
-Suppose two different applications want to share an encrypted message with each other. The following procedure could be used:
-
-### Step 1:
-
-Application 1 and 2 each generate their key pairs using the `generateKeys` function. Private keys should NEVER leave the application and should be kept securely.
-
-### Step 2:
-
-The applications share their `publicKeyString` with each other.
-
-### Step 3:
-
-With the `publicKeyString` of each other, the applications can each compute the shared secret. This secret should NEVER leave the application scope and should be kept securely.
-
-### Step 4:
-
-The message to send gets encrypted using the `encryptContent` function. The returning object is then sent to the other application.
-
-### Step 5:
-
-The receiving application decrypts the message using the `decryptContent` function. This returns the message as a string.
-
-### Example code:
+Two applications exchanging an encrypted message:
 
 ```ts
+import Encryptor, { type EncryptorPlatform } from '@cypriot/encryptor';
+
 const platform: EncryptorPlatform = "app";
 
 const clientKeys = await Encryptor.generateKeys({ platform });
 const serverKeys = await Encryptor.generateKeys({ platform });
 
-const message = {
-    hello: "world"
-};
-
+// Each party computes the same shared secret from the other's public key
 const sharedSecret = await Encryptor.computeSecret({
-    clientPublicKeyBase64: clientKeys.publicKeyString,
-    platform,
-    privateKey: serverKeys.privateKey
+  clientPublicKeyBase64: clientKeys.publicKeyString,
+  privateKey: serverKeys.privateKey,
+  platform,
 });
 
-const encrypted = await Encryptor.encryptContent({ content: JSON.stringify(message), platform, secret: sharedSecret });
+const encrypted = await Encryptor.encryptContent({
+  content: JSON.stringify({ hello: "world" }),
+  platform,
+  secret: sharedSecret,
+});
 
-console.log({ encrypted });
+console.log(encrypted);
+// { iv: "bBJXZLp5XIKF68Xcdu3Ecg==", hash: "FYrQAVSeDhk..." }
 
 const decrypted = await Encryptor.decryptContent({
-    content: encrypted,
-    secret: sharedSecret,
-    platform
+  content: encrypted,
+  secret: sharedSecret,
+  platform,
 }).then(d => JSON.parse(d));
 
-
-console.log({ decrypted });
+console.log(decrypted);
+// { hello: "world" }
 ```
 
-Output:
-```
-{
-  encrypted: {
-    iv: "bBJXZLp5XIKF68Xcdu3Ecg==",
-    hash: "FYrQAVSeDhkG40dpYDeP5WH1P7U68qV+eayPH4mxcU4=",
-  },
-}
-{
-  decrypted: {
-    hello: "world",
-  },
-}
-```
+---
+
+## License
+
+MIT

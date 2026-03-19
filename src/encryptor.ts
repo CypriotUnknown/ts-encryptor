@@ -5,6 +5,41 @@ import { type SecurityKeysOutput } from './models/models.securityKeysOutput';
 import { type ComputeSecretDTO } from "./models/models.computeSecretDTO";
 import { EncryptorPlatform } from './models/models.platformType';
 
+/**
+ * A static utility class for ECDH key exchange, AES-256-CBC encryption/decryption,
+ * and shared-secret computation.
+ *
+ * Supports two platform modes:
+ * - `"browser"` — JWK-based keys, hex cipher output. For Web Crypto API clients.
+ * - `"app"` — SPKI/PKCS8 keys, Base64 cipher output. For Node.js, Bun, and mobile apps.
+ *
+ * All cryptographic operations use the native `crypto.subtle` Web Crypto API
+ * (available in Node.js 18+, Bun, and modern browsers).
+ *
+ * @example
+ * ```ts
+ * import Encryptor from "@cypriot/encryptor";
+ *
+ * const platform = "app";
+ * const clientKeys = await Encryptor.generateKeys({ platform });
+ * const serverKeys = await Encryptor.generateKeys({ platform });
+ *
+ * const secret = await Encryptor.computeSecret({
+ *   clientPublicKeyBase64: clientKeys.publicKeyString,
+ *   privateKey: serverKeys.privateKey,
+ *   platform,
+ * });
+ *
+ * const encrypted = await Encryptor.encryptContent({
+ *   content: JSON.stringify({ hello: "world" }),
+ *   secret,
+ *   platform,
+ * });
+ *
+ * const decrypted = await Encryptor.decryptContent({ content: encrypted, secret, platform });
+ * console.log(decrypted); // {"hello":"world"}
+ * ```
+ */
 export class Encryptor {
     private static sharedInstance: Encryptor | undefined;
     private static readonly curve = "P-256";
@@ -18,11 +53,32 @@ export class Encryptor {
 
     private constructor() { }
 
+    /**
+     * Returns the singleton instance of `Encryptor`.
+     *
+     * Note: all methods on this class are static, so the instance is rarely
+     * needed directly. It is provided for compatibility with dependency-injection
+     * patterns that require an object reference.
+     */
     public static get instance(): Encryptor {
         if (this.sharedInstance === undefined) this.sharedInstance = new Encryptor();
         return this.sharedInstance;
     }
 
+    /**
+     * Generates a new ECDH P-256 key pair and returns both the serialized strings
+     * and the native `CryptoKey` private key.
+     *
+     * @param params.platform - The target platform, which determines the key serialization format.
+     * @returns The generated key pair as a {@linkcode SecurityKeysOutput}.
+     *
+     * @example
+     * ```ts
+     * const keys = await Encryptor.generateKeys({ platform: "app" });
+     * console.log(keys.publicKeyString); // Base64 SPKI
+     * console.log(keys.privateKeyString); // Base64 PKCS8
+     * ```
+     */
     public static async generateKeys(params: { platform: "browser" | "app" }): Promise<SecurityKeysOutput> {
         const { platform } = params;
         const keyPair = await crypto.subtle.generateKey(
@@ -99,6 +155,34 @@ export class Encryptor {
         );
     }
 
+    /**
+     * Imports a serialized key string back into a native `CryptoKey`.
+     *
+     * Use this when you need to reconstruct a key from a stored or transmitted
+     * string (e.g., a private key loaded from secure storage, or a peer's public key).
+     *
+     * @param params.platform - The platform that defines the key format.
+     * @param params.base64KeyString - The serialized key string to import.
+     * @param params.returnKey - (`"app"` platform only) Whether to import the key as
+     *   `"private"` (PKCS8) or `"public"` (SPKI).
+     * @returns The imported `CryptoKey`.
+     *
+     * @example
+     * ```ts
+     * // Re-import a stored app private key
+     * const privateKey = await Encryptor.generateCryptoKeyFromBase64({
+     *   platform: "app",
+     *   base64KeyString: storedPrivateKeyString,
+     *   returnKey: "private",
+     * });
+     *
+     * // Import a peer's browser public key
+     * const publicKey = await Encryptor.generateCryptoKeyFromBase64({
+     *   platform: "browser",
+     *   base64KeyString: peerPublicKeyJson,
+     * });
+     * ```
+     */
     public static async generateCryptoKeyFromBase64(
         params:
             | { platform: "browser"; base64KeyString: string; }
@@ -124,6 +208,26 @@ export class Encryptor {
         );
     }
 
+    /**
+     * Derives a shared secret from your private key and the other party's public key
+     * using ECDH, then hashes it with SHA-256.
+     *
+     * Both parties independently calling this method with each other's public keys
+     * will arrive at the same secret — without ever transmitting it.
+     *
+     * @param dto - See {@linkcode ComputeSecretDTO}.
+     * @returns A Base64-encoded, SHA-256-hashed shared secret string suitable for use
+     *   as an AES-256 key in {@linkcode encryptContent} / {@linkcode decryptContent}.
+     *
+     * @example
+     * ```ts
+     * const secret = await Encryptor.computeSecret({
+     *   clientPublicKeyBase64: peerPublicKeyString,
+     *   privateKey: myKeys.privateKey,
+     *   platform: "app",
+     * });
+     * ```
+     */
     public static async computeSecret(dto: ComputeSecretDTO): Promise<string> {
         const { clientPublicKeyBase64, privateKey, platform } = dto;
         let publicKey: CryptoKey;
@@ -140,6 +244,20 @@ export class Encryptor {
         return StringUtility.arrayBufferToString({ buffer: digestBuffer, encoding: this.secretEncoding });
     }
 
+    /**
+     * Generates a string of random decimal digits (0–9).
+     *
+     * Useful for generating OTP codes or other numeric tokens.
+     *
+     * @param dto.maxDigits - The number of digits to generate. Defaults to `6`.
+     * @returns A string of random digits of the requested length.
+     *
+     * @example
+     * ```ts
+     * const otp = Encryptor.generateRandomDigits({ maxDigits: 6 });
+     * console.log(otp); // e.g. "482031"
+     * ```
+     */
     public static generateRandomDigits(dto?: { maxDigits: number }): string {
         const maxDigits = dto?.maxDigits ?? 6;
 
@@ -157,6 +275,28 @@ export class Encryptor {
         return OTP;
     }
 
+    /**
+     * Encrypts a string using AES-256-CBC with a random initialization vector.
+     *
+     * The `secret` must be a Base64-encoded 256-bit key — typically the output of
+     * {@linkcode computeSecret}.
+     *
+     * @param dto.content - The plaintext string to encrypt.
+     * @param dto.secret - The Base64-encoded shared secret (32-byte AES key).
+     * @param dto.platform - Determines the ciphertext encoding:
+     *   `"app"` produces Base64, `"browser"` produces hex.
+     * @returns An {@linkcode EncryptedBodyDTO} containing the IV and ciphertext.
+     *
+     * @example
+     * ```ts
+     * const encrypted = await Encryptor.encryptContent({
+     *   content: JSON.stringify({ hello: "world" }),
+     *   secret: sharedSecret,
+     *   platform: "app",
+     * });
+     * // { iv: "...", hash: "..." }
+     * ```
+     */
     public static async encryptContent(dto: { content: string; secret: string; platform: EncryptorPlatform; }): Promise<EncryptedBodyDTO> {
         const { content, secret, platform } = dto;
         const iv = crypto.randomBytes(16).toString(this.ivEncoding);
@@ -178,6 +318,26 @@ export class Encryptor {
         };
     }
 
+    /**
+     * Decrypts an {@linkcode EncryptedBodyDTO} produced by {@linkcode encryptContent}.
+     *
+     * The `secret` and `platform` must match the values used during encryption.
+     *
+     * @param dto.content - The {@linkcode EncryptedBodyDTO} to decrypt.
+     * @param dto.secret - The Base64-encoded shared secret (32-byte AES key).
+     * @param dto.platform - Must match the platform used during encryption.
+     * @returns The decrypted plaintext string.
+     *
+     * @example
+     * ```ts
+     * const decrypted = await Encryptor.decryptContent({
+     *   content: encrypted,
+     *   secret: sharedSecret,
+     *   platform: "app",
+     * });
+     * console.log(decrypted); // '{"hello":"world"}'
+     * ```
+     */
     public static async decryptContent(dto: { content: EncryptedBodyDTO, secret: string; platform: EncryptorPlatform; }): Promise<string> {
         const { content, secret, platform } = dto;
         const decipher = crypto.createDecipheriv(

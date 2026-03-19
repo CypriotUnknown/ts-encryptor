@@ -1,6 +1,6 @@
 {
     "name": "@cypriot/encryptor",
-    "version": "0.1.411",
+    "version": "0.1.5",
     "license": "MIT",
     "exports": "./mod.ts"
 }

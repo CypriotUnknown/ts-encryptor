@@ -1,0 +1,57 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Setup Node for npm
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view @cypriotunknown/encryptor@$VERSION version &>/dev/null; then
+            echo "Version $VERSION already published to npm, skipping"
+          else
+            npm publish --provenance --access public
+          fi
+
+      - name: Setup Node for GitHub Packages
+        uses: actions/setup-node@v6.3.0
+        with:
+          registry-url: "https://npm.pkg.github.com"
+
+      - name: Publish to GitHub Packages
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view @cypriotunknown/encryptor@$VERSION version --registry https://npm.pkg.github.com &>/dev/null; then
+            echo "Version $VERSION already published to GitHub Packages, skipping"
+          else
+            npm publish --registry https://npm.pkg.github.com
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to JSR
+        run: |
+          VERSION=$(node -p "require('./jsr.json').version")
+          if curl -sf "https://api.jsr.io/scopes/cypriot/packages/encryptor/versions/$VERSION" > /dev/null; then
+            echo "Version $VERSION already published to JSR, skipping"
+          else
+            npx jsr publish --allow-dirty
+          fi
