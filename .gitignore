@@ -1,5 +1,33 @@
+# Dependencies
 node_modules
+
+# Development sandbox
 dev
-.DS_Store
+
+# Build output
 dist
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment / local config
 *.local
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage

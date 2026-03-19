@@ -83,7 +83,14 @@ const sharedSecret = await Encryptor.computeSecret({
 
 Returns a Base64-encoded, SHA-256-hashed shared secret.
 
-### 4. Encrypt and decrypt
+### 4. Generate random digits (OTP)
+
+```ts
+const otp = Encryptor.generateRandomDigits({ maxDigits: 6 });
+console.log(otp); // e.g. "482031"
+```
+
+### 5. Encrypt and decrypt
 
 ```ts
 const encrypted = await Encryptor.encryptContent({
@@ -149,6 +156,17 @@ const decrypted = await Encryptor.decryptContent({
 console.log(decrypted);
 // { hello: "world" }
 ```
+
+---
+
+## Related Packages
+
+| Language | Package |
+|----------|---------|
+| Swift    | [`SwiftEncryptor`](https://github.com/CypriotUnknown/swift-encryptor) — iOS 15+ / macOS 12+ / tvOS 15+ / watchOS 8+, built on CryptoKit and CommonCrypto |
+| Go       | [`encryptor-go`](https://github.com/CypriotUnknown/encryptor-go) — `go get github.com/CypriotUnknown/encryptor-go` |
+
+All three implementations share the same P-256 curve, SHA-256 secret digest, AES-256-CBC cipher, and `"app"`/`"browser"` platform conventions, so any pair can interoperate directly.
 
 ---
 
