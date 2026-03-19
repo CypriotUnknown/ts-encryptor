@@ -2,6 +2,10 @@
   "name": "@cypriotunknown/encryptor",
   "version": "0.1.5",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CypriotUnknown/ts-encryptor"
+  },
   "devDependencies": {
     "@types/node": "^22.13.10"
   }
